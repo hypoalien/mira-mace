@@ -1,8 +1,10 @@
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import path from "node:path";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { promisify } from "node:util";
 import type { Case, CaseDocument } from "../cases";
 import { DEMO_DOCUMENTS } from "../dme-constants";
+
+const execFileAsync = promisify(execFile);
 
 export async function readReceivedDocuments(documents: CaseDocument[]) {
   return Promise.all(documents.map(async (document) => {
@@ -10,22 +12,13 @@ export async function readReceivedDocuments(documents: CaseDocument[]) {
     if (!known) throw new Error(`Unknown case document: ${document.path}`);
 
     const filename = path.join(process.cwd(), "public", known.path.slice(1));
-    const pdf = getDocument({ data: new Uint8Array(await readFile(filename)), useSystemFonts: true });
-    try {
-      const loaded = await pdf.promise;
-      const pages: string[] = [];
-      for (let number = 1; number <= loaded.numPages; number += 1) {
-        const page = await loaded.getPage(number);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item) => "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "").join("").trim());
-        page.cleanup();
-      }
-      const text = pages.join("\n\n").trim();
-      if (!text) throw new Error(`No extractable text in ${document.path}`);
-      return { kind: document.kind, name: document.name, text };
-    } finally {
-      await pdf.destroy();
-    }
+    const { stdout } = await execFileAsync("pdftotext", ["-enc", "UTF-8", "-nopgbrk", filename, "-"], {
+      maxBuffer: 5 * 1024 * 1024,
+      timeout: 15_000,
+    });
+    const text = stdout.trim();
+    if (!text) throw new Error(`No extractable text in ${document.path}`);
+    return { kind: document.kind, name: document.name, text };
   }));
 }
 
