@@ -13,11 +13,9 @@ services:
     build:
       context: .
       target: worker
-    env_file:
-      - path: .env.worker.local
-        required: false
     environment:
       TEMPORAL_ADDRESS: temporal:7233
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
     volumes:
       - case-data:/app/data/cases
     depends_on:
@@ -30,6 +28,7 @@ services:
       - "${APP_PORT:-3000}:3000"
     environment:
       TEMPORAL_ADDRESS: temporal:7233
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
       PORT: 3000
     volumes:
       - case-data:/app/data/cases

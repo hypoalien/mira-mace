@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -11,11 +11,12 @@ FROM deps AS worker
 COPY . .
 CMD ["npm", "run", "worker"]
 
-FROM node:22-alpine AS web
+FROM node:22-bookworm-slim AS web
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/data ./data
+COPY --from=build /app/public ./public
 EXPOSE 3000
 CMD ["node", "server.js"]
