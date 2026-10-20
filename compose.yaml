@@ -9,6 +9,21 @@ services:
     volumes:
       - temporal-data:/data
 
+  worker:
+    build:
+      context: .
+      target: worker
+    env_file:
+      - path: .env.worker.local
+        required: false
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    volumes:
+      - case-data:/app/data/cases
+    depends_on:
+      - temporal
+    restart: unless-stopped
+
   web:
     build: .
     ports:

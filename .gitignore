@@ -6,5 +6,8 @@ out/
 .env.local
 .env.*.local
 data/cases/*.json
+data/cases/*.tmp
+data/cases/*.lock/
 !data/cases/.gitkeep
 .playwright-cli/
+.local/

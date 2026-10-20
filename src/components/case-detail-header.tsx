@@ -1,4 +1,6 @@
 import { Badge } from "@/components/ui/badge";
+import { ResetCaseButton } from "@/components/reset-case-button";
+import { DmeControls } from "@/components/dme-controls";
 import type { Case } from "@/lib/cases";
 
 function formatTime(value: string) {
@@ -11,9 +13,9 @@ function formatTime(value: string) {
   );
 }
 
-/** Intake-only version of the case header in the original coordinator. */
 export function CaseDetailHeader({ current }: { current: Case }) {
   const { patient, equipment, pcp } = current.intake;
+  const patientDetails = current.coordination.patientDetails;
 
   return (
     <header className="border-b pb-3">
@@ -28,20 +30,23 @@ export function CaseDetailHeader({ current }: { current: Case }) {
             {current.status}
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground">Created {formatTime(current.createdAt)}</p>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <p className="text-xs text-muted-foreground">Created {formatTime(current.createdAt)}</p>
+          <DmeControls current={current} />
+          <ResetCaseButton caseId={current.id} />
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
         <span><span className="text-muted-foreground">Age</span> {patient.age}</span>
-        <span><span className="text-muted-foreground">Phone</span> {patient.phone ?? "Not provided"}</span>
-        <span><span className="text-muted-foreground">Address</span> {patient.address ?? "Not provided"}</span>
+        <span><span className="text-muted-foreground">Phone</span> {patientDetails?.phone ?? "Not confirmed"}</span>
+        <span><span className="text-muted-foreground">Address</span> {patientDetails?.address ?? "Not confirmed"}</span>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 lg:grid-cols-[1.15fr_1.35fr_1.75fr]">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Insurance</dt>
-          <dd className="mt-1 text-sm font-medium">{patient.insurance}</dd>
-          <dd className="mt-1 text-xs text-muted-foreground">Supplemental plan: {patient.hasSupplement ? "Yes" : "None"}</dd>
+          <dd className="mt-1 text-sm font-medium">{patientDetails?.insuranceDetails ?? "Not confirmed"}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Equipment</dt>

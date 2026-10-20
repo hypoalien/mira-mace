@@ -1,11 +1,7 @@
 {
   "patient": {
     "name": "Eleanor Martinez",
-    "age": 72,
-    "phone": null,
-    "address": null,
-    "insurance": "Original Medicare (Part B)",
-    "hasSupplement": false
+    "age": 72
   },
   "equipment": {
     "name": "Standard manual wheelchair",

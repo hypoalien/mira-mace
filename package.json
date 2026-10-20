@@ -6,12 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "worker": "tsx src/temporal/worker.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.98",
+    "@temporalio/ai-sdk": "^1.24.0",
+    "@temporalio/client": "^1.24.0",
+    "@temporalio/worker": "^1.24.0",
+    "@temporalio/workflow": "^1.24.0",
+    "@temporalio/workflow-streams": "^1.24.0",
+    "ai": "^7.0.146",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
+    "dotenv": "^17.4.2",
     "lucide-react": "^1.60.0",
     "next": "16.4.2",
     "radix-ui": "^1.8.1",
@@ -29,6 +38,7 @@
     "eslint-config-next": "16.4.2",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

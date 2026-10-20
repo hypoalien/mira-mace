@@ -7,6 +7,7 @@ const supplierSchema = z.object({
   name: z.string().min(1),
   phone: z.string().min(1),
   address: z.string().min(1),
+  medicareEnrolled: z.boolean().default(true),
 });
 
 export async function listSuppliers() {
