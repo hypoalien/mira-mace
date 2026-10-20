@@ -1,0 +1,74 @@
+[
+  {
+    "id": "SUP-001",
+    "name": "Lakeshore Home Medical Equipment",
+    "phone": "(312) 555-0142",
+    "address": "1820 N Clark St, Chicago, IL 60614"
+  },
+  {
+    "id": "SUP-002",
+    "name": "Windy City Mobility & DME",
+    "phone": "(312) 555-0177",
+    "address": "435 W Erie St, Chicago, IL 60654"
+  },
+  {
+    "id": "SUP-003",
+    "name": "Prairie State Medical Supply",
+    "phone": "(773) 555-0211",
+    "address": "3344 N Western Ave, Chicago, IL 60618"
+  },
+  {
+    "id": "SUP-004",
+    "name": "Northside CarePlus Equipment",
+    "phone": "(773) 555-0288",
+    "address": "5215 N Clark St, Chicago, IL 60640"
+  },
+  {
+    "id": "SUP-005",
+    "name": "ChicagoLand Durable Medical",
+    "phone": "(312) 555-0301",
+    "address": "900 S Wabash Ave, Chicago, IL 60605"
+  },
+  {
+    "id": "SUP-006",
+    "name": "Roosevelt Medical Supply Co",
+    "phone": "(312) 555-0319",
+    "address": "1147 W Roosevelt Rd, Chicago, IL 60608"
+  },
+  {
+    "id": "SUP-007",
+    "name": "Halsted Home Health Supply",
+    "phone": "(773) 555-0356",
+    "address": "2870 N Halsted St, Chicago, IL 60657"
+  },
+  {
+    "id": "SUP-008",
+    "name": "Midwest Mobility Solutions",
+    "phone": "(847) 555-0402",
+    "address": "6601 W Touhy Ave, Niles, IL 60714"
+  },
+  {
+    "id": "SUP-009",
+    "name": "Belmont Medical Equipment",
+    "phone": "(773) 555-0447",
+    "address": "3400 W Belmont Ave, Chicago, IL 60618"
+  },
+  {
+    "id": "SUP-010",
+    "name": "Lincoln Park DME Services",
+    "phone": "(312) 555-0468",
+    "address": "2401 N Lincoln Ave, Chicago, IL 60614"
+  },
+  {
+    "id": "SUP-011",
+    "name": "South Loop Medical Supply",
+    "phone": "(312) 555-0490",
+    "address": "1530 S State St, Chicago, IL 60605"
+  },
+  {
+    "id": "SUP-012",
+    "name": "Evanston Home Medical",
+    "phone": "(847) 555-0533",
+    "address": "1700 Central St, Evanston, IL 60201"
+  }
+]

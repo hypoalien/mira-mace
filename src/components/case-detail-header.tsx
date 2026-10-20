@@ -1,0 +1,64 @@
+import { Badge } from "@/components/ui/badge";
+import type { Case } from "@/lib/cases";
+
+function formatTime(value: string) {
+  return (
+    new Date(value).toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }) + " UTC"
+  );
+}
+
+/** Intake-only version of the case header in the original coordinator. */
+export function CaseDetailHeader({ current }: { current: Case }) {
+  const { patient, equipment, pcp } = current.intake;
+
+  return (
+    <header className="border-b pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{patient.name}</h1>
+          <Badge
+            variant="outline"
+            className="gap-1.5 border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
+          >
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+            {current.status}
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">Created {formatTime(current.createdAt)}</p>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <span><span className="text-muted-foreground">Age</span> {patient.age}</span>
+        <span><span className="text-muted-foreground">Phone</span> {patient.phone ?? "Not provided"}</span>
+        <span><span className="text-muted-foreground">Address</span> {patient.address ?? "Not provided"}</span>
+      </div>
+
+      <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 lg:grid-cols-[1.15fr_1.35fr_1.75fr]">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Insurance</dt>
+          <dd className="mt-1 text-sm font-medium">{patient.insurance}</dd>
+          <dd className="mt-1 text-xs text-muted-foreground">Supplemental plan: {patient.hasSupplement ? "Yes" : "None"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Equipment</dt>
+          <dd className="mt-1 text-sm font-medium">{equipment.name}</dd>
+          <dd className="mt-1 text-xs text-muted-foreground">HCPCS: {equipment.hcpcs}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">PCP</dt>
+          <dd className="mt-1 text-sm font-medium">{pcp.name}</dd>
+          <dd className="mt-1 text-xs text-muted-foreground">{pcp.practice} · {pcp.location} · {pcp.phone}</dd>
+        </div>
+      </dl>
+
+      <blockquote className="mt-3 flex flex-wrap gap-x-3 gap-y-1 rounded-lg border-l-2 border-primary/50 bg-muted/40 px-3 py-2">
+        <span className="shrink-0 pt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Intake status</span>
+        <p className="min-w-0 flex-1 text-sm">{pcp.notes}</p>
+      </blockquote>
+    </header>
+  );
+}

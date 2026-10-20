@@ -1,0 +1,26 @@
+services:
+  temporal:
+    image: temporalio/temporal:latest
+    user: "0:0"
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+      - "${TEMPORAL_UI_PORT:-8233}:8233"
+    volumes:
+      - temporal-data:/data
+
+  web:
+    build: .
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      PORT: 3000
+    volumes:
+      - case-data:/app/data/cases
+    depends_on:
+      - temporal
+
+volumes:
+  temporal-data:
+  case-data:
