@@ -5,10 +5,10 @@ This document describes the current `mira-mace-takehome` checkout. It covers eve
 ## At a glance
 
 - **Next.js** serves the case list, case details, supplier directory, and API routes.
-- **JSON files** are the demo's data store: `data/intake.json` is the case template, `data/suppliers.json` is the directory, and `data/cases/CASE-*.json` stores each live case, including messages, calls, documents, confirmed patient details, and coordination state.
+- **JSON files** are the demo's data store: `data/intake.json` is the case template, `data/suppliers.json` is the directory, and `data/cases/CASE-*.json` stores each live case, including messages, calls, documents, patient details, care advocate tasks, and coordination state.
 - **One Temporal workflow per case** (`dmeCaseWorkflow`) handles both proactive DME coordination and advocate chat. Its Activities read and write the JSON store. Chat streams through Temporal Workflow Streams to the browser.
 - **`src/ai/` owns model behavior:** the DME and chat invocation functions share the same prompt, case-context builder, and thin mock-contact tools. The Temporal workflow supplies the model and Activities.
-- **External calls are simulated.** Tool execution creates pending PCP, supplier, or patient calls in the case JSON. A human submits mock answers from the case page.
+- **External calls are simulated.** Tool execution creates pending PCP, supplier, or patient calls in the case JSON. A human submits mock answers from `/cases/[id]/external`.
 
 ## File and folder tree
 
@@ -50,12 +50,19 @@ mira-mace-takehome/
     │   ├── prompts.ts
     │   ├── agents/
     │   │   ├── chat-agent.ts
+    │   │   ├── collect-agent-stream.ts
     │   │   └── dme-agent.ts
     │   └── tools/
+    │       ├── book-delivery.ts
+    │       ├── confirm-patient-arrangement.ts
     │       ├── contact-patient.ts
     │       ├── contact-pcp.ts
     │       ├── contact-supplier.ts
-    │       └── index.ts
+    │       ├── index.ts
+    │       ├── notify-patient.ts
+    │       ├── request-human-assistance.ts
+    │       ├── request-supplier-offer.ts
+    │       └── verify-delivery.ts
     ├── app/
     │   ├── globals.css
     │   ├── icon.svg
@@ -63,7 +70,9 @@ mira-mace-takehome/
     │   ├── page.tsx
     │   ├── cases/
     │   │   └── [id]/
-    │   │       └── page.tsx
+    │   │       ├── page.tsx
+    │   │       └── external/
+    │   │           └── page.tsx
     │   ├── suppliers/
     │   │   └── page.tsx
     │   └── api/
@@ -73,9 +82,14 @@ mira-mace-takehome/
     │               ├── chat/
     │               │   └── route.ts
     │               ├── dme/
+    │               │   ├── draft-response/
+    │               │   │   └── route.ts
     │               │   ├── respond/
     │               │   │   └── route.ts
     │               │   └── start/
+    │               │       └── route.ts
+    │               ├── human-tasks/
+    │               │   └── [taskId]/
     │               │       └── route.ts
     │               └── reset/
     │                   └── route.ts
@@ -86,6 +100,9 @@ mira-mace-takehome/
     │   ├── case-status-panel.tsx
     │   ├── create-case-button.tsx
     │   ├── dme-controls.tsx
+    │   ├── external-responses.tsx
+    │   ├── fulfillment-response-fields.tsx
+    │   ├── human-tasks-panel.tsx
     │   ├── reset-case-button.tsx
     │   └── ui/                         # shadcn primitives; details excluded below
     │       ├── badge.tsx
@@ -101,13 +118,25 @@ mira-mace-takehome/
     │       └── textarea.tsx
     ├── lib/
     │   ├── cases.ts
+    │   ├── chat-activity.ts
     │   ├── dme-constants.ts
+    │   ├── patient-details.ts
     │   ├── dme/
+    │   │   ├── book-delivery.ts
     │   │   ├── cases.ts
+    │   │   ├── delivery-windows.ts
     │   │   ├── contact-patient.ts
     │   │   ├── contact-pcp.ts
     │   │   ├── contact-supplier.ts
-    │   │   └── responses.ts
+    │   │   ├── extract-patient-details.ts
+    │   │   ├── fulfillment.ts
+    │   │   ├── fulfillment-responses.ts
+    │   │   ├── human-tasks.ts
+    │   │   ├── notify-patient.ts
+    │   │   ├── patient-arrangement.ts
+    │   │   ├── responses.ts
+    │   │   ├── supplier-offer.ts
+    │   │   └── verify-delivery.ts
     │   ├── suppliers.ts
     │   ├── utils.ts
     │   └── temporal/
@@ -155,7 +184,7 @@ These root files are configuration or documentation; they do not define applicat
 
 | File or folder | Purpose and functions |
 | --- | --- |
-| `data/intake.json` | Source case intake with patient name/age, equipment, and PCP information. It intentionally has no patient contact, delivery, insurance, or home-accessibility details; those are collected through the patient mock call. `readIntake()` validates it, and creation/reset copy it into a case record. |
+| `data/intake.json` | Source case intake with patient name, age, insurance, supplemental coverage status, equipment, and PCP information. Patient contact, delivery, and home-accessibility details are collected through the patient mock call. `readIntake()` validates it, and creation/reset copy it into a case record. |
 | `data/suppliers.json` | Supplier directory fixture. `listSuppliers()` validates and reads it. |
 | `data/cases/.gitkeep` | Keeps the case-store directory present in Git. |
 | `data/cases/CASE-*.json` | Generated persistent record per case. Holds intake, messages, active chat reservation, generation ID, call attempts, attached document references, selected supplier, and status summary. Files are ignored by Git. |
@@ -170,6 +199,7 @@ These root files are configuration or documentation; they do not define applicat
 | `layout.tsx` | `RootLayout()` supplies the page shell, global CSS, and metadata. |
 | `page.tsx` | `CasesPage()` calls `listCases()` and renders the all-cases page. |
 | `cases/[id]/page.tsx` | `CasePage()` loads a case with `getCase()`, loads the supplier count, handles a missing ID, and composes the case details, chat, status, and controls. |
+| `cases/[id]/external/page.tsx` | `ExternalResponsesPage()` loads the same case and renders the mock-response workspace in its own tab. |
 | `suppliers/page.tsx` | `SuppliersPage()` loads and renders the supplier directory. |
 | `globals.css` | Tailwind imports, theme tokens, and global element styles. No functions. |
 | `icon.svg` | App favicon. No functions. |
@@ -181,7 +211,9 @@ These root files are configuration or documentation; they do not define applicat
 | `route.ts` — `POST /api/cases` | `POST()` creates a new case from `data/intake.json` with `createCaseFromIntake()`. Returns the case and its detail-page URL. |
 | `[id]/dme/start/route.ts` — `POST /api/cases/:id/dme/start` | `POST()` calls `ensureCaseWorkflow()` to start or reuse the case's single Temporal workflow. It signals a reused workflow to re-evaluate the case, including an existing ready case missing patient details. |
 | `[id]/chat/route.ts` — `POST /api/cases/:id/chat` | `POST()` validates a message, ensures that same case workflow exists, reserves one active chat turn with `claimCaseChat()`, signals `chat-requested`, then returns a streamed response. It releases the reservation if signaling fails. |
-| `[id]/dme/respond/route.ts` — `POST /api/cases/:id/dme/respond` | `POST()` validates a simulated PCP, supplier, or patient answer, saves it with `recordMockResponse()`, and signals `case-updated` so the workflow can continue. A `no_response` answer schedules a follow-up. |
+| `[id]/dme/respond/route.ts` — `POST /api/cases/:id/dme/respond` | `POST()` validates a simulated PCP, supplier, or patient outcome, saves it with `recordMockResponse()`, and signals `case-updated`. A fourth unanswered attempt escalates. |
+| `[id]/dme/draft-response/route.ts` — `POST /api/cases/:id/dme/draft-response` | `POST()` uses the AI SDK to draft structured mock answers for one pending call. It fills the external-page form without submitting the response. |
+| `[id]/human-tasks/[taskId]/route.ts` — `POST /api/cases/:id/human-tasks/:taskId` | `POST()` saves an advocate resolution, ensures the case workflow is running, and signals `case-updated` so coordination resumes. |
 | `[id]/reset/route.ts` — `POST /api/cases/:id/reset` | `POST()` rebuilds the JSON case from intake using the **same ID**, clearing chat and coordination state. It then attempts to cancel the old workflow; the new generation ID also prevents stale writes. |
 
 ## App-specific components (`src/components/`)
@@ -191,11 +223,14 @@ These files contain case-specific presentation and interaction. The default shad
 | File | Main functions and behavior |
 | --- | --- |
 | `app-nav.tsx` | `AppNav()` renders top-level navigation. |
-| `case-chat-panel.tsx` | `CaseChatPanel()` renders saved messages, the current turn, composer, loading and error states. Its `send()` posts to the chat route and updates the visible reply as chunks arrive. `readChatStream()` parses newline-delimited `delta`, `done`, and `error` events. It refreshes case data while coordination runs. |
-| `case-detail-header.tsx` | `CaseDetailHeader()` renders intake identity/equipment/PCP information and shows confirmed phone, address, and insurance only after a patient response. `formatTime()` formats timestamps. |
-| `case-status-panel.tsx` | `CaseStatusPanel()` summarizes documents, supplier/PCP/patient calls, confirmed patient details, selected supplier, and agent state. `StatusItem()` renders one label/value row. |
+| `case-chat-panel.tsx` | `CaseChatPanel()` renders saved messages, live background coordination activity, tool results, composer, loading and error states. Its `send()` posts to the chat route and updates the reply as chunks arrive. `readChatStream()` parses text, tool activity, completion, and error events. It refreshes case data while coordination runs. |
+| `case-detail-header.tsx` | `CaseDetailHeader()` renders intake identity, insurance, equipment, and PCP information, plus confirmed phone and address after a patient response. `formatTime()` formats timestamps. |
+| `case-status-panel.tsx` | `CaseStatusPanel()` summarizes coordination, the supplier offer, patient agreement, booking, notification, delivery evidence, and agent state. `StatusItem()` renders one label/value row. |
 | `create-case-button.tsx` | `CreateCaseButton()` renders case creation controls. Its `createCase()` posts to `/api/cases` and navigates to the new case. |
-| `dme-controls.tsx` | `DmeControls()` starts or resumes coordination, shows pending mock calls, and auto-opens a right-side shadcn `Sheet` when a new response is needed; `start()` posts to the start route. `MockCallForm()` collects PCP documents, supplier answers, or patient contact/delivery/insurance/accessibility details from blank fields; its `submit()` posts to the response route and closes the sheet after success. |
+| `dme-controls.tsx` | `DmeControls()` starts or resumes coordination, shows pending mock calls, and opens the external-response route in a new tab. |
+| `external-responses.tsx` | `ExternalResponses()` refreshes pending calls and selects one to answer. `MockCallForm()` collects answers; `draftAnswers()` fills an editable AI draft, and `submit()` saves the chosen response. |
+| `fulfillment-response-fields.tsx` | `FulfillmentResponseFields()` renders the purpose-specific mock supplier and patient fields for offer, agreement, booking, and delivery replies. |
+| `human-tasks-panel.tsx` | `HumanTasksPanel()` lists pending and resolved advocate tasks. `PendingTask()` collects a resolution and posts it to the task route. |
 | `reset-case-button.tsx` | `ResetCaseButton()` renders the reset control. Its `reset()` posts to the reset route and refreshes the current case page. |
 
 ## Model-facing code (`src/ai/`)
@@ -205,25 +240,33 @@ This folder contains the prompts, case context, tool schemas, and AI SDK calls u
 | File | Main functions and behavior |
 | --- | --- |
 | `prompts.ts` | `DME_AGENT_INSTRUCTIONS` is the shared system prompt for proactive coordination and advocate chat. |
-| `context.ts` | `prepareAgentStep()` reloads authoritative case and supplier context through an injected Activity, adds that context to the model instructions, and enables only useful PCP/supplier/patient tools for the next model step. `LoadDmeContext` is its dependency type. |
-| `agents/dme-agent.ts` | `runDmeAgent()` performs one proactive `generateText()` coordination round using the injected model and Activities. |
+| `context.ts` | `prepareAgentStep()` reloads authoritative case, supplier, fulfillment, and advocate-task context through an injected Activity, adds it to model instructions, and enables tools whose prerequisites are met. `LoadDmeContext` is its dependency type. |
+| `agents/dme-agent.ts` | `runDmeAgent()` performs one proactive streamed coordination round using the injected model and Activities. It requires a useful outreach tool while one is available. |
 | `agents/chat-agent.ts` | `runChatAgent()` runs a `streamText()` chat turn with recent saved messages, the new user message, shared tools and refreshed context. It collects and returns the final answer; the Temporal workflow owns persistence and stream completion. |
+| `agents/collect-agent-stream.ts` | `collectAgentStream()` reads model text and tool start/result events for both agent paths. |
 | `tools/contact-pcp.ts` | `createContactPCPTool()` defines the PCP tool description and input schema, then passes the tool call ID and arguments to the injected contact Activity. |
 | `tools/contact-patient.ts` | `createContactPatientTool()` defines the model-facing mock patient contact tool. The model chooses a subset of missing patient fields and writes the questions; case identity remains application-controlled. |
 | `tools/contact-supplier.ts` | `createContactSupplierTool()` does the same for the next eligible supplier; `requirements` become the contact Activity's extra questions. |
-| `tools/index.ts` | `createCoordinationTools()` assembles all three tools for either agent. `ContactActivities` describes the injected contact functions. |
+| `tools/request-supplier-offer.ts` | `createRequestSupplierOfferTool()` lets the agent ask the selected supplier for cost, rental terms, and delivery windows. |
+| `tools/confirm-patient-arrangement.ts` | `createConfirmPatientArrangementTool()` queues an explicit patient agreement request using recorded offer facts. |
+| `tools/book-delivery.ts` | `createBookDeliveryTool()` lets the agent request the patient's agreed slot; the business service enforces agreement and waits for supplier confirmation. |
+| `tools/notify-patient.ts` | `createNotifyPatientTool()` records a simulated notification after a confirmed booking. |
+| `tools/verify-delivery.ts` | `createSupplierDeliveryEvidenceTool()` and `createPatientDeliveryConfirmationTool()` request the two independent delivery confirmations. |
+| `tools/request-human-assistance.ts` | `createHumanAssistanceTool()` lets the agent create a care advocate task after all enrolled supplier options are exhausted. Blocked and repeatedly unanswered calls create tasks in the response handler. |
+| `tools/index.ts` | `createCoordinationTools()` assembles outreach, fulfillment, and human-assistance tools for either agent. `ContactActivities` describes the injected Activities. |
 
 ## Server-side case and DME code (`src/lib/`)
 
 ### `cases.ts` — JSON store and case lifecycle
 
-Zod schemas in this file validate intake, chat messages, active chat turns, calls, documents, confirmed patient details, coordination state, and full case records. It exports the `Case`, `Intake`, `CaseMessage`, `CaseCall`, `CaseDocument`, and `PatientDetails` types.
+Zod schemas in this file validate intake, chat messages, active chat turns, calls, documents, human tasks, coordination state, fulfillment evidence, and full case records. It exports the `Case`, `Intake`, `CaseMessage`, `CaseCall`, `CaseDocument`, `PatientDetails`, `DeliverySlot`, `Fulfillment`, and `HumanTask` types. `patient-details.ts` owns the shared patient-details schema so Temporal can bundle readiness checks without filesystem code.
 
 | Function | Role |
 | --- | --- |
 | `casePath()` | Validates a case ID before constructing its JSON filename. |
 | `withCaseWrite()` | Serializes writes to one case using a short-lived lock directory; handles stale locks. |
 | `writeCase()` | Validates and atomically replaces a case JSON file through a temporary file and rename. |
+| `deriveCaseStatus()` | Derives the visible case status from current calls, advocate tasks, coordination state, and fulfillment evidence. |
 | `readIntake()` | Reads and validates `data/intake.json`. |
 | `freshCase()` | Creates an empty case value from intake, with a fresh generation ID. |
 | `createCaseFromIntake()` | Creates a new ID and writes its first case JSON file exclusively. |
@@ -246,19 +289,33 @@ The AI tools in `src/ai/tools/` define the model-facing interface; these files i
 | `cases.ts` — `releaseDmeStart()` | Clears that reservation if Temporal start fails. |
 | `cases.ts` — `loadDmeContext()` | Loads the current case and supplier directory for an active workflow generation. |
 | `cases.ts` — `markAgentRunning()` | Marks coordination as running. |
+| `cases.ts` — `beginCoordinationRound()` | Adds a durable “Thinking…” assistant entry when a background round starts. |
+| `cases.ts` — `recordCoordinationActivity()` | Saves a tool call's running/completed state, request, and result on that entry. |
+| `cases.ts` — `recordCoordinationFailure()` | Replaces a failed round's loading text with an error message. |
 | `cases.ts` — `getNextFollowUpAt()` | Finds the earliest scheduled follow-up. |
 | `cases.ts` — `dispatchDueFollowUps()` | Moves due scheduled calls back to awaiting response and increments their attempt count. |
-| `cases.ts` — `recordAgentRound()` | Recomputes `waiting`, `ready`, or `blocked` status and a human-readable summary. Ready now requires PCP documents, a qualifying supplier, and confirmed patient details. |
+| `cases.ts` — `recordAgentRound()` | Recomputes `waiting`, `blocked`, or `completed` status and a human-readable summary from recorded evidence. |
 | `contact-patient.ts` — `contactPatient()` | Queues an idempotent mock patient call for the missing details selected by the model. It rejects duplicate or already-confirmed fields and saves the field-to-question mapping with the call. |
 | `cases.ts` — `recordAgentError()` | Marks coordination as errored after an unhandled workflow failure. |
 | `contact-pcp.ts` — `contactPCP()` | Queues an idempotent mock PCP call for missing order/clinical documents. Records the supplier-call list at the time of this call, which may be empty. |
 | `contact-supplier.ts` — `contactSupplier()` | Queues an idempotent mock call to the next uncontacted Medicare-enrolled supplier; adds the required intake, K0001 stock, and delivery questions. |
-| `responses.ts` — `recordMockResponse()` | Validates and saves an answered call, selected PCP attachments, supplier qualification, or structured patient details. A no-answer response schedules a next-day retry using its `nextDay()` helper. |
+| `fulfillment.ts` — `hasCoordinationReadiness()`, `hasValidAgreement()`, `hasConfirmedBooking()`, `getFulfillmentStage()`, `hasOpenCall()` | Computes stage and tool prerequisites from recorded documents, supplier, patient details, offer, agreement, booking, notification, and delivery evidence. |
+| `delivery-windows.ts` — `validateDeliveryWindows()`, `suggestedDeliveryWindows()` | Rejects malformed or past offer windows and generates future business-day mock windows for the draft button. |
+| `supplier-offer.ts` — `requestSupplierOffer()` | Queues a mock offer request for the selected supplier; permits a revised offer after a rejected booking. |
+| `patient-arrangement.ts` — `confirmPatientArrangement()` | Queues patient acceptance, address, and slot questions only after coordination and the offer are ready. |
+| `book-delivery.ts` — `bookDelivery()` | Atomically checks agreement and the exact offered slot, then queues a supplier booking request as pending. |
+| `notify-patient.ts` — `notifyPatient()` | Records a simulated notification assembled only from confirmed booking and offer facts; deduplicates by booking call ID. |
+| `verify-delivery.ts` — `requestSupplierDeliveryEvidence()`, `requestPatientDeliveryConfirmation()` | Queues the two mock delivery checks after notification. |
+| `fulfillment-responses.ts` — `applyFulfillmentAnswer()` | Validates and records offer, agreement, booking, and delivery evidence; creates advocate tasks for refusal or delivery issues. |
+| `responses.ts` — `recordMockResponse()` | Saves answered calls, reported blockers, documents, supplier qualification, and patient details. A no-answer response schedules the next day for attempts 1–3 and creates an advocate task after attempt 4. |
+| `extract-patient-details.ts` — `extractPatientDetails()` | Uses validated AI SDK structured output to normalize patient phone and home/delivery addresses from mock answers before persistence. |
+| `human-tasks.ts` — `addHumanTask()`, `createHumanTask()`, `resolveHumanTask()` | Deduplicates and saves advocate tasks from deterministic escalation or the agent tool, then records advocate resolutions. |
 
 ### Other `src/lib/` files
 
 | File | Main functions and behavior |
 | --- | --- |
+| `chat-activity.ts` | `chatActivitySchema` validates persisted tool events; `formatToolValue()` turns tool inputs and results into readable text. |
 | `dme-constants.ts` | `DEMO_DOCUMENTS` maps each required PCP document kind to its name and local PDF URL. |
 | `suppliers.ts` | `supplierSchema` validates directory entries; `listSuppliers()` reads `data/suppliers.json`. |
 | `utils.ts` | Re-exports the `cn()` class-name helper used by UI styling. |
@@ -274,8 +331,8 @@ The AI tools in `src/ai/tools/` define the model-facing interface; these files i
 | `workflows.ts` | Exports `dmeCaseWorkflow` for Temporal's workflow bundler. |
 | `dme/constants.ts` | `CASE_TASK_QUEUE` names the worker queue. `chatTextTopic()` and `chatCompletionTopic()` create per-turn stream topic names; `ChatCompletion` describes success/error completion. |
 | `dme/signals.ts` | Defines the `caseUpdated` and `chatRequested` Temporal signals. |
-| `dme/activities.ts` | Re-exports case/DME store functions as Temporal Activities, including chat persistence (`persistChatExchange`) and reservation cleanup (`releaseChatReservation`). |
-| `dme/workflow.ts` | Defines the one long-running case workflow. `runCoordination()` marks the case running, invokes `runDmeAgent()`, then records the round. `runChat()` validates the active turn, invokes `runChatAgent()` with a streaming Temporal model, persists the final exchange, and publishes completion or error. `dmeCaseWorkflow()` handles buffered chat/update signals and durable next-day follow-up timers until reset or workflow end. |
+| `dme/activities.ts` | Re-exports case/DME store functions as Temporal Activities, including `createHumanTask()`, chat persistence (`persistChatExchange`), and reservation cleanup (`releaseChatReservation`). |
+| `dme/workflow.ts` | Defines the one long-running case workflow. `runCoordination()` records a durable round and each streamed tool event before saving the final summary. `runChat()` streams chat text and tool events, persists the exchange, and publishes completion or error. `dmeCaseWorkflow()` handles buffered signals and durable next-day follow-up timers. |
 
 ## Local/generated entries
 
@@ -295,6 +352,8 @@ These exist in the current checkout but are generated or local state, so their i
 
 1. **Create:** `CreateCaseButton` → `POST /api/cases` → `createCaseFromIntake()` → `data/cases/CASE-*.json` → case detail page.
 2. **Start coordination:** `DmeControls` → `POST /dme/start` → `ensureCaseWorkflow()` → `dmeCaseWorkflow()` → `runDmeAgent()` → mock-contact Activities → case JSON.
-3. **Answer a mock call:** `MockCallForm` → `POST /dme/respond` → `recordMockResponse()` → `case-updated` signal → the same workflow resumes. No response creates a next-day follow-up in JSON and the workflow waits on a Temporal timer.
-4. **Chat:** `CaseChatPanel` → `POST /chat` → `claimCaseChat()` → `chat-requested` signal → workflow `runChat()` → `runChatAgent()` → Workflow Streams → `createCaseChatResponse()` → browser. `completeCaseChat()` saves the final exchange to the same case JSON.
-5. **Reset:** `ResetCaseButton` → `POST /reset` → `resetCase()` reads the latest intake, replaces the JSON with the same case ID and a new generation, and cancels the previous workflow when possible.
+3. **Answer a mock call:** `MockCallForm` on `/cases/[id]/external` → `POST /dme/respond` → `recordMockResponse()` → `case-updated` signal → the same workflow resumes. The first three no-response outcomes schedule next-day follow-ups; the fourth creates an advocate task. A reported blocker creates a task immediately.
+4. **Fulfill:** selected supplier → mock offer → recorded documents and patient details → explicit patient agreement → pending supplier booking → confirmed reference → simulated patient notification → supplier proof and patient confirmation → `completed`. `getFulfillmentStage()` derives each stage from saved evidence, and the business operations reject premature tool calls.
+5. **Resolve a blocker:** `HumanTasksPanel` → `POST /human-tasks/:taskId` → `resolveHumanTask()` → `case-updated` signal → the same workflow reloads the resolution and continues useful work.
+6. **Chat:** `CaseChatPanel` → `POST /chat` → `claimCaseChat()` → `chat-requested` signal → workflow `runChat()` → `runChatAgent()` → Workflow Streams → `createCaseChatResponse()` → browser. `completeCaseChat()` saves the final exchange to the same case JSON.
+7. **Reset:** `ResetCaseButton` → `POST /reset` → `resetCase()` reads the latest intake, replaces the JSON with the same case ID and a new generation, and cancels the previous workflow when possible.

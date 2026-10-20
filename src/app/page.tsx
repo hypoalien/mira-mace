@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowUpRight, BriefcaseMedical } from "lucide-react";
 import { CreateCaseButton } from "@/components/create-case-button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listCases } from "@/lib/cases";
@@ -46,7 +46,7 @@ export default async function CasesPage() {
                     <TableCell className="px-6 py-3 text-xs text-muted-foreground">{item.id}</TableCell>
                     <TableCell className="px-6 py-3 font-semibold">{item.intake.patient.name}</TableCell>
                     <TableCell className="px-6 py-3">{item.intake.equipment.name}<span className="mt-1 block text-xs text-muted-foreground">{item.intake.equipment.hcpcs}</span></TableCell>
-                    <TableCell className="px-6 py-3"><Badge variant="secondary" className="gap-2 border border-primary/15"><span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />{item.status}</Badge></TableCell>
+                    <TableCell className="px-6 py-3"><StatusBadge value={item.status} /></TableCell>
                     <TableCell className="px-6 py-3">{new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
                     <TableCell className="px-6 py-3"><Link className="inline-flex items-center gap-1 font-semibold text-primary hover:underline" href={`/cases/${item.id}`}>Open case<ArrowUpRight className="size-4" aria-hidden="true" /></Link></TableCell>
                   </TableRow>

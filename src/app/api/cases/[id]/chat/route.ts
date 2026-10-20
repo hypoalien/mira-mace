@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(4000),
+  channel: z.enum(["advocate", "patient"]).default("advocate"),
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   let claim;
   try {
-    claim = await claimCaseChat(id, turnId, parsed.data.message);
+    claim = await claimCaseChat(id, turnId, parsed.data.message, parsed.data.channel);
   } catch (error) {
     console.error("Could not reserve chat turn", error);
     await temporal.close();

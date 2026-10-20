@@ -7,10 +7,12 @@ const supplierSchema = z.object({
   name: z.string().min(1),
   phone: z.string().min(1),
   address: z.string().min(1),
-  medicareEnrolled: z.boolean().default(true),
+  medicareEnrolled: z.boolean(),
 });
 
 export async function listSuppliers() {
   const filename = path.join(process.cwd(), "data", "suppliers.json");
   return supplierSchema.array().parse(JSON.parse(await readFile(filename, "utf8")));
 }
+
+export type AwaitedSuppliers = Awaited<ReturnType<typeof listSuppliers>>;

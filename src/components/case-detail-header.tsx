@@ -1,7 +1,9 @@
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { ResetCaseButton } from "@/components/reset-case-button";
 import { DmeControls } from "@/components/dme-controls";
+import { AutoMockControls } from "@/components/auto-mock-controls";
 import type { Case } from "@/lib/cases";
+import type { AwaitedSuppliers } from "@/lib/suppliers";
 
 function formatTime(value: string) {
   return (
@@ -13,7 +15,7 @@ function formatTime(value: string) {
   );
 }
 
-export function CaseDetailHeader({ current }: { current: Case }) {
+export function CaseDetailHeader({ current, suppliers }: { current: Case; suppliers: AwaitedSuppliers }) {
   const { patient, equipment, pcp } = current.intake;
   const patientDetails = current.coordination.patientDetails;
 
@@ -22,17 +24,12 @@ export function CaseDetailHeader({ current }: { current: Case }) {
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{patient.name}</h1>
-          <Badge
-            variant="outline"
-            className="gap-1.5 border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
-          >
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-            {current.status}
-          </Badge>
+          <StatusBadge value={current.status} className="px-2.5 py-1 font-semibold" />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3">
           <p className="text-xs text-muted-foreground">Created {formatTime(current.createdAt)}</p>
           <DmeControls current={current} />
+          <AutoMockControls current={current} suppliers={suppliers} />
           <ResetCaseButton caseId={current.id} />
         </div>
       </div>
@@ -46,7 +43,8 @@ export function CaseDetailHeader({ current }: { current: Case }) {
       <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 lg:grid-cols-[1.15fr_1.35fr_1.75fr]">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Insurance</dt>
-          <dd className="mt-1 text-sm font-medium">{patientDetails?.insuranceDetails ?? "Not confirmed"}</dd>
+          <dd className="mt-1 text-sm font-medium">{patient.insurance}</dd>
+          <dd className="mt-1 text-xs text-muted-foreground">{patient.hasSupplement ? "Supplemental coverage" : "No supplemental plan"}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Equipment</dt>

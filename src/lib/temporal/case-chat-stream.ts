@@ -1,9 +1,11 @@
 import type { Client } from "@temporalio/client";
 import { WorkflowStreamClient } from "@temporalio/workflow-streams/client";
-import { chatCompletionTopic, chatTextTopic, type ChatCompletion } from "@/temporal/dme/constants";
+import { chatActivityTopic, chatCompletionTopic, chatTextTopic, type ChatCompletion } from "@/temporal/dme/constants";
+import type { ChatActivity } from "@/lib/chat-activity";
 
 type ChatEvent =
   | { type: "delta"; text: string }
+  | { type: "activity"; activity: ChatActivity }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -25,13 +27,18 @@ export function createCaseChatResponse(client: Client, workflowId: string, turnI
           const subscriber = WorkflowStreamClient.create(client, workflowId);
           const textTopic = chatTextTopic(turnId);
           const doneTopic = chatCompletionTopic(turnId);
+          const activityTopic = chatActivityTopic(turnId);
           let finished = false;
-          for await (const item of subscriber.subscribe<Uint8Array | ChatCompletion>([textTopic, doneTopic], 0, { resultType: true })) {
+          for await (const item of subscriber.subscribe<Uint8Array | ChatCompletion | ChatActivity>([textTopic, activityTopic, doneTopic], 0, { resultType: true })) {
             if (item.topic === doneTopic) {
               const completion = item.data as ChatCompletion;
               emit(completion.status === "done" ? { type: "done" } : { type: "error", message: completion.message });
               finished = true;
               break;
+            }
+            if (item.topic === activityTopic) {
+              emit({ type: "activity", activity: item.data as ChatActivity });
+              continue;
             }
             const part = JSON.parse(decoder.decode(item.data as Uint8Array)) as ModelStreamPart;
             if (part.type === "text-delta" && part.delta) emit({ type: "delta", text: part.delta });
